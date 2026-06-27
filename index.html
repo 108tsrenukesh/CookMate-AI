@@ -1,0 +1,1235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CookMate AI - Your Personal Cooking To-Do List</title>
+  <meta name="description" content="AI-powered personal cooking planner. Generate meal plans, grocery lists, cooking steps & timers.">
+  <meta name="theme-color" content="#22c55e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="CookMate">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.svg">
+  <style>
+    :root {
+      --bg-primary: #0a0e1a;
+      --bg-card: #111827;
+      --bg-card-hover: #1a2332;
+      --border: #1e293b;
+      --border-hover: #334155;
+      --accent: #22c55e;
+      --accent-glow: rgba(34, 197, 94, 0.15);
+      --text: #e2e8f0;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --info: #3b82f6;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg-primary);
+      min-height: 100vh;
+      color: var(--text);
+    }
+
+    .hidden { display: none !important; }
+    .fade-in { animation: fadeIn 0.4s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes timerPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); } 50% { box-shadow: 0 0 0 12px rgba(34, 197, 94, 0); } }
+
+    .container { max-width: 960px; margin: 0 auto; padding: 20px; }
+
+    /* ===== ONBOARDING ===== */
+    #onboarding { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+
+    .onboard-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 40px;
+      max-width: 440px;
+      width: 100%;
+      animation: slideUp 0.5s ease;
+    }
+
+    .onboard-card h1 {
+      font-size: 2rem;
+      background: linear-gradient(135deg, #22c55e, #3b82f6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 6px;
+    }
+
+    .onboard-card .subtitle { color: var(--text-muted); margin-bottom: 28px; font-size: 0.95rem; }
+
+    .onboard-badge {
+      display: inline-block;
+      background: var(--accent);
+      color: #000;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      margin-bottom: 20px;
+    }
+
+    .form-group { margin-bottom: 18px; }
+    .form-group label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 6px; font-weight: 500; }
+
+    .form-group input, .form-group select {
+      width: 100%;
+      padding: 12px 16px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--bg-primary);
+      color: var(--text);
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .form-group input:focus, .form-group select:focus { border-color: var(--accent); }
+    .form-group .hint { font-size: 0.75rem; color: var(--text-dim); margin-top: 4px; }
+
+    .ai-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      margin-bottom: 18px;
+      font-size: 0.8rem;
+    }
+
+    .ai-badge.active { background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.2); color: var(--accent); }
+    .ai-badge.offline { background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.2); color: var(--warning); }
+
+    .btn-primary {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: #fff;
+      font-size: 1.05rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(34, 197, 94, 0.25); }
+
+    /* ===== MAIN APP ===== */
+    header { text-align: center; padding: 24px 0; }
+
+    header h1 {
+      font-size: 2rem;
+      background: linear-gradient(90deg, #22c55e, #3b82f6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    header .greeting { color: var(--text-muted); margin-top: 4px; }
+    header .greeting strong { color: var(--accent); }
+
+    .profile-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 10px;
+    }
+
+    .profile-pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 20px;
+      animation: fadeIn 0.4s ease;
+    }
+
+    .card h2 { font-size: 1.2rem; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
+
+    .checkbox-group { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 4px; }
+    .checkbox-group label { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.85rem; color: #cbd5e1; }
+    .checkbox-group input[type="checkbox"] { accent-color: var(--accent); width: 15px; height: 15px; }
+
+    .ai-status {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      border-radius: 10px;
+      margin-bottom: 16px;
+      font-size: 0.85rem;
+    }
+
+    .ai-status.connected { background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.2); color: var(--accent); }
+    .ai-status.fallback { background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.2); color: var(--warning); }
+    .ai-status.offline { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); color: var(--danger); }
+
+    .ai-status .spinner {
+      width: 14px; height: 14px;
+      border: 2px solid var(--accent);
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    .btn-generate {
+      width: 100%;
+      padding: 16px;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: #fff;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .btn-generate:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(34, 197, 94, 0.3); }
+    .btn-generate:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .loading-state { text-align: center; padding: 60px 20px; }
+    .loading-state .loader {
+      width: 48px; height: 48px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 16px;
+    }
+    .loading-state p { color: var(--text-muted); }
+    .loading-state .loading-step { color: var(--accent); font-weight: 500; margin-top: 8px; }
+
+    .meal-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+
+    .meal-card {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px;
+      transition: all 0.25s;
+    }
+
+    .meal-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .meal-card .meal-type { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent); font-weight: 700; margin-bottom: 6px; }
+    .meal-card h3 { font-size: 1.15rem; margin-bottom: 6px; }
+    .meal-card .meal-desc { font-size: 0.85rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 12px; }
+
+    .meal-meta { display: flex; flex-wrap: wrap; gap: 10px; font-size: 0.75rem; color: var(--text-dim); }
+    .meal-meta span { display: flex; align-items: center; gap: 4px; }
+
+    .nutrition-bar { display: flex; gap: 12px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+    .nutrition-item { text-align: center; flex: 1; }
+    .nutrition-item .label { font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+    .nutrition-item .value { font-size: 0.95rem; font-weight: 600; margin-top: 2px; }
+
+    .grocery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+    .grocery-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg-primary);
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      transition: all 0.2s;
+    }
+    .grocery-item:hover { border-color: var(--accent); }
+    .grocery-item .item-name { font-size: 0.85rem; }
+    .grocery-item .item-qty { font-size: 0.75rem; color: var(--accent); font-weight: 500; }
+
+    .sub-list { display: flex; flex-direction: column; gap: 8px; }
+    .sub-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--bg-primary);
+      padding: 12px 16px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+    .sub-item .original { color: var(--danger); text-decoration: line-through; font-size: 0.85rem; }
+    .sub-item .arrow { color: var(--accent); font-size: 1.1rem; }
+    .sub-item .replacement { color: var(--accent); font-weight: 500; font-size: 0.85rem; }
+    .sub-item .reason { font-size: 0.7rem; color: var(--text-dim); margin-left: auto; }
+
+    .budget-container { background: var(--bg-primary); border-radius: 12px; padding: 20px; border: 1px solid var(--border); }
+    .budget-header { display: flex; justify-content: space-between; margin-bottom: 14px; }
+    .budget-header .amount { font-size: 1.5rem; font-weight: 700; }
+    .budget-header .limit { color: var(--text-muted); font-size: 0.85rem; }
+    .budget-header .amount.green { color: var(--accent); }
+    .budget-header .amount.red { color: var(--danger); }
+    .budget-bar { height: 10px; background: var(--border); border-radius: 5px; overflow: hidden; margin-bottom: 10px; }
+    .budget-bar-fill { height: 100%; border-radius: 5px; transition: width 0.6s ease; }
+    .budget-status { display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 16px; }
+    .budget-status .savings { color: var(--accent); }
+    .budget-status .over { color: var(--danger); }
+    .budget-breakdown { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+    .breakdown-item { background: var(--bg-card); padding: 12px; border-radius: 8px; text-align: center; }
+    .breakdown-item .label { font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; }
+    .breakdown-item .value { font-size: 1.05rem; font-weight: 600; margin-top: 4px; }
+
+    .timer-section { display: flex; gap: 14px; flex-wrap: wrap; }
+    .timer-card {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      flex: 1;
+      min-width: 200px;
+      text-align: center;
+    }
+    .timer-card.active { border-color: var(--accent); animation: timerPulse 2s infinite; }
+    .timer-card .timer-label { font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+    .timer-card .timer-value { font-size: 2rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .timer-card .timer-controls { display: flex; gap: 8px; justify-content: center; margin-top: 10px; }
+    .timer-card .timer-controls button {
+      padding: 6px 16px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: transparent;
+      color: var(--text);
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .timer-card .timer-controls button:hover { border-color: var(--accent); color: var(--accent); }
+    .timer-card .timer-controls button.running { background: var(--accent); color: #000; border-color: var(--accent); }
+
+    .steps-list { display: flex; flex-direction: column; gap: 8px; }
+    .step-item {
+      display: flex;
+      gap: 12px;
+      background: var(--bg-primary);
+      padding: 12px 16px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .step-item:hover { border-color: var(--accent); }
+    .step-item.done { opacity: 0.5; }
+    .step-item.done .step-num { background: var(--accent); color: #000; }
+    .step-num {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+    .step-text { font-size: 0.9rem; color: var(--text); line-height: 1.5; }
+
+    .share-bar { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+    .btn-share {
+      padding: 10px 20px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-share:hover { border-color: var(--accent); color: var(--accent); }
+
+    .toast {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      background: var(--accent);
+      color: #000;
+      padding: 12px 24px;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.3s;
+      z-index: 1000;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.error { background: var(--danger); color: #fff; }
+
+    /* Install Banner */
+    .install-banner {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--bg-card);
+      border-top: 1px solid var(--border);
+      padding: 14px 20px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      z-index: 999;
+      animation: slideUp 0.3s ease;
+    }
+
+    .install-banner.show { display: flex; }
+
+    .install-banner span {
+      font-size: 0.9rem;
+      color: var(--text);
+    }
+
+    .btn-install {
+      padding: 8px 20px;
+      border: none;
+      border-radius: 8px;
+      background: var(--accent);
+      color: #000;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+
+    .btn-install:hover { opacity: 0.9; }
+
+    .btn-dismiss {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      font-size: 1.1rem;
+      cursor: pointer;
+      padding: 4px 8px;
+    }
+
+    .btn-dismiss:hover { color: var(--text); }
+
+    @media (max-width: 600px) {
+      .onboard-card { padding: 24px; margin: 16px; }
+      .card { padding: 16px; }
+      header h1 { font-size: 1.5rem; }
+      .timer-section { flex-direction: column; }
+    }
+
+    @media print {
+      body { background: #fff; color: #000; }
+      .card { border: 1px solid #ddd; background: #fff; break-inside: avoid; }
+      .btn-generate, .btn-share, .timer-section, .share-bar { display: none !important; }
+      .meal-card { border: 1px solid #ddd; }
+      header h1 { -webkit-text-fill-color: #000; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ===== ONBOARDING SCREEN ===== -->
+<div id="onboarding">
+  <div class="onboard-card">
+    <span class="onboard-badge">PromptWars Warm-Up</span>
+    <h1>CookMate AI</h1>
+    <p class="subtitle">AI-powered personal cooking planner. No login required.</p>
+
+    <div class="ai-badge" id="aiBadge"></div>
+
+    <div class="form-group">
+      <label>Your Name</label>
+      <input type="text" id="userName" placeholder="e.g. Renuka" maxlength="30" autofocus>
+    </div>
+
+    <div class="form-group">
+      <label>Your Age</label>
+      <input type="number" id="userAge" placeholder="e.g. 28" min="5" max="100">
+      <div class="hint">Used to personalize nutrition targets for your age group</div>
+    </div>
+
+    <button class="btn-primary" onclick="startApp()">Start Planning Meals</button>
+  </div>
+</div>
+
+<!-- ===== MAIN APP ===== -->
+<div id="mainApp" class="hidden">
+  <div class="container">
+    <header>
+      <h1>CookMate AI</h1>
+      <p class="greeting" id="greeting"></p>
+      <div class="profile-pill">
+        <span class="dot"></span>
+        <span id="profileInfo"></span>
+      </div>
+    </header>
+
+    <div class="ai-status" id="aiStatus"></div>
+
+    <div class="card">
+      <h2>Plan Your Meals</h2>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Day</label>
+          <select id="day"></select>
+        </div>
+        <div class="form-group">
+          <label>People</label>
+          <input type="number" id="people" min="1" max="12">
+        </div>
+        <div class="form-group">
+          <label>Budget (₹)</label>
+          <input type="number" id="budget" min="50" step="50">
+        </div>
+        <div class="form-group">
+          <label>Time (min)</label>
+          <input type="number" id="time" min="15" step="15">
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-top:14px">
+        <label>Dietary Needs</label>
+        <div class="checkbox-group">
+          <label><input type="checkbox" id="veg" checked> Vegetarian</label>
+          <label><input type="checkbox" id="vegan"> Vegan</label>
+          <label><input type="checkbox" id="glutenFree"> Gluten-Free</label>
+          <label><input type="checkbox" id="lowCarb"> Low-Carb</label>
+          <label><input type="checkbox" id="dairyFree"> Dairy-Free</label>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-top:14px">
+        <label>Cuisine</label>
+        <select id="cuisine"></select>
+      </div>
+
+      <div class="form-group" style="margin-top:14px">
+        <label>Special Notes (Optional)</label>
+        <input type="text" id="specialNotes" placeholder="e.g. Kids don't like spicy, have leftover chicken..." maxlength="200">
+      </div>
+
+      <button class="btn-generate" id="generateBtn" onclick="generateMeals()">
+        <span>AI Generate Meal Plan</span>
+      </button>
+    </div>
+
+    <div id="loadingState" class="hidden">
+      <div class="loading-state">
+        <div class="loader"></div>
+        <p>Chef AI is cooking up your personalized plan...</p>
+        <p class="loading-step" id="loadingStep">Analyzing your profile...</p>
+      </div>
+    </div>
+
+    <div id="results" class="hidden">
+      <div class="card">
+        <h2>Your Personalized Meal Plan</h2>
+        <div class="meal-grid" id="mealGrid"></div>
+      </div>
+      <div class="card">
+        <h2>Cooking Steps</h2>
+        <div class="steps-list" id="stepsList"></div>
+      </div>
+      <div class="card">
+        <h2>Timers</h2>
+        <div class="timer-section" id="timerSection"></div>
+      </div>
+      <div class="card">
+        <h2>Shopping List</h2>
+        <div class="grocery-grid" id="groceryGrid"></div>
+      </div>
+      <div class="card">
+        <h2>Smart Swaps</h2>
+        <div class="sub-list" id="subList"></div>
+      </div>
+      <div class="card">
+        <h2>Budget Analysis</h2>
+        <div class="budget-container" id="budgetContainer"></div>
+      </div>
+      <div class="card">
+        <h2>Actions</h2>
+        <div class="share-bar">
+          <button class="btn-share" onclick="printPlan()">Print Plan</button>
+          <button class="btn-share" onclick="copyToClipboard()">Copy to Clipboard</button>
+          <button class="btn-share" onclick="regenerateDifferent()">Try Different Meals</button>
+          <button class="btn-share" onclick="startNewPlan()">New Plan</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Install Banner -->
+<div class="install-banner" id="installBanner">
+  <span>Install CookMate AI on your phone</span>
+  <button class="btn-install" onclick="installApp()">Install</button>
+  <button class="btn-dismiss" onclick="dismissInstall()">✕</button>
+</div>
+
+<script>
+// ===================================================================
+//  COOKMATE AI - Configuration
+//  Replace placeholder keys with your real API keys before deploying.
+//  NEVER commit real keys to a public GitHub repo!
+//
+//  Get your free keys:
+//    Gemini: https://aistudio.google.com/apikey
+//    Groq:   https://console.groq.com/keys
+// ===================================================================
+
+const CONFIG = {
+  // Google Gemini API Key (Primary AI engine)
+  // Replace "" with your actual key: "AIza..."
+  GEMINI_API_KEY: "YOUR_GEMINI_KEY_HERE",
+
+  // Groq API Key (Fallback AI engine)
+  // Replace "" with your actual key: "gsk_..."
+  GROQ_API_KEY: "YOUR_GROQ_KEY_HERE",
+
+  // Default settings
+  DEFAULTS: {
+    BUDGET: 500,      // INR per day
+    PEOPLE: 2,
+    TIME: 60,         // minutes
+    CUISINE: "any",   // any, indian, continental, chinese, mexican, mediterranean, japanese, thai, korean
+  },
+
+  // App branding
+  APP_NAME: "CookMate AI",
+  EVENT_TAG: "PromptWars Warm-Up",
+};
+
+// ===================================================================
+//  COOKMATE AI - Main Application Logic
+// ===================================================================
+
+// ===== STATE =====
+const state = {
+  name: '',
+  age: 25,
+  aiMode: 'algorithm',
+  timers: [],
+  timerIntervals: [],
+  currentPlan: null
+};
+
+// ===== INIT: Read config and set defaults =====
+(function initConfig() {
+  const def = CONFIG.DEFAULTS;
+
+  // Set input defaults from config
+  document.getElementById('people').value = def.PEOPLE || 2;
+  document.getElementById('budget').value = def.BUDGET || 500;
+  document.getElementById('time').value = def.TIME || 60;
+
+  // Populate cuisines
+  const cuisines = [
+    { v: 'any', l: 'Surprise Me' },
+    { v: 'indian', l: 'Indian' },
+    { v: 'continental', l: 'Continental' },
+    { v: 'chinese', l: 'Chinese' },
+    { v: 'mexican', l: 'Mexican' },
+    { v: 'mediterranean', l: 'Mediterranean' },
+    { v: 'japanese', l: 'Japanese' },
+    { v: 'thai', l: 'Thai' },
+    { v: 'korean', l: 'Korean' }
+  ];
+  const cuisineSel = document.getElementById('cuisine');
+  cuisineSel.innerHTML = cuisines.map(c => `<option value="${c.v}" ${c.v === (def.CUISINE || 'any') ? 'selected' : ''}>${c.l}</option>`).join('');
+
+  // Determine AI mode based on config keys
+  const geminiKey = cfg.GEMINI_API_KEY || '';
+  const groqKey = cfg.GROQ_API_KEY || '';
+
+  if (geminiKey) {
+    state.aiMode = 'gemini';
+  } else if (groqKey) {
+    state.aiMode = 'groq';
+  } else {
+    state.aiMode = 'algorithm';
+  }
+
+  // Show AI badge on onboarding
+  const badge = document.getElementById('aiBadge');
+  if (state.aiMode === 'gemini') {
+    badge.className = 'ai-badge active';
+    badge.innerHTML = 'Gemini AI ready';
+  } else if (state.aiMode === 'groq') {
+    badge.className = 'ai-badge active';
+    badge.innerHTML = 'Groq AI ready (fallback)';
+  } else {
+    badge.className = 'ai-badge offline';
+    badge.innerHTML = 'Algorithm mode (add API keys in index.html for AI)';
+  }
+})();
+
+// ===== SECURITY: Input Sanitization =====
+function sanitize(str) {
+  if (typeof str !== 'string') return '';
+  return str.replace(/[<>&"'\\/]/g, '').trim().substring(0, 500);
+}
+
+function sanitizeInput(id) {
+  const el = document.getElementById(id);
+  return el ? sanitize(el.value) : '';
+}
+
+// ===== SECURITY: Rate Limiting =====
+const rateLimiter = {
+  lastCall: 0,
+  minInterval: 2000,
+  canCall() { return Date.now() - this.lastCall >= this.minInterval; },
+  record() { this.lastCall = Date.now(); }
+};
+
+// ===== NUTRITION TARGETS BY AGE =====
+function getNutritionTargets(age) {
+  if (age < 12) return { cal: 1600, protein: 30, carbs: 220, fat: 55, note: 'Growing child - focus on calcium & iron' };
+  if (age < 18) return { cal: 2200, protein: 50, carbs: 300, fat: 70, note: 'Teen - high energy needs for growth' };
+  if (age < 30) return { cal: 2000, protein: 55, carbs: 260, fat: 65, note: 'Active adult - balanced macros' };
+  if (age < 50) return { cal: 1900, protein: 60, carbs: 230, fat: 65, note: 'Moderate activity - watch sodium' };
+  if (age < 65) return { cal: 1800, protein: 65, carbs: 220, fat: 60, note: 'More protein for muscle retention' };
+  return { cal: 1600, protein: 60, carbs: 200, fat: 55, note: 'Senior - fiber & calcium important' };
+}
+
+// ===== MEAL DATABASE (Fallback) =====
+const mealDB = {
+  indian: {
+    breakfast: [
+      { name: "Poha", desc: "Flattened rice tempered with peanuts, curry leaves & turmeric", time: "15 min", cost: 40, cal: 250, protein: 7, carbs: 42, fat: 6, ingredients: [{n:"Poha",q:"1 cup"},{n:"Peanuts",q:"2 tbsp"},{n:"Onion",q:"1 medium"},{n:"Curry Leaves",q:"5-6"},{n:"Turmeric",q:"1/4 tsp"},{n:"Mustard Seeds",q:"1 tsp"},{n:"Oil",q:"1 tbsp"},{n:"Lemon",q:"1/2"},{n:"Salt",q:"to taste"}], steps: ["Rinse poha gently and drain","Heat oil, crackle mustard seeds","Add curry leaves, onion, peanuts, turmeric","Add poha, toss well, cook 2 min","Squeeze lemon, serve hot"] },
+      { name: "Moong Dal Chilla", desc: "Savory lentil crepes with herbs and spices", time: "20 min", cost: 45, cal: 220, protein: 14, carbs: 30, fat: 5, ingredients: [{n:"Moong Dal",q:"1 cup"},{n:"Onion",q:"1"},{n:"Green Chili",q:"2"},{n:"Coriander",q:"2 tbsp"},{n:"Ginger",q:"1 inch"},{n:"Salt",q:"to taste"},{n:"Oil",q:"1 tbsp"}], steps: ["Soak dal 2 hours, blend to smooth batter","Add onion, chili, coriander, ginger, salt","Heat pan, pour batter, spread thin","Cook both sides golden","Serve with chutney"] },
+      { name: "Aloo Paratha", desc: "Stuffed potato flatbread with butter", time: "25 min", cost: 50, cal: 320, protein: 9, carbs: 48, fat: 10, ingredients: [{n:"Wheat Flour",q:"2 cups"},{n:"Potato",q:"2 medium"},{n:"Onion",q:"1"},{n:"Green Chili",q:"2"},{n:"Cumin Powder",q:"1 tsp"},{n:"Salt",q:"to taste"},{n:"Butter",q:"1 tbsp"},{n:"Oil",q:"as needed"}], steps: ["Boil & mash potatoes","Mix with onion, chili, cumin, salt","Make dough, stuff with filling","Roll flat, cook on tawa","Serve with butter & curd"] },
+      { name: "Upma", desc: "Semolina roasted with mustard, urad dal & vegetables", time: "20 min", cost: 35, cal: 280, protein: 8, carbs: 44, fat: 8, ingredients: [{n:"Semolina",q:"1 cup"},{n:"Mustard Seeds",q:"1 tsp"},{n:"Urad Dal",q:"1 tbsp"},{n:"Onion",q:"1"},{n:"Green Chili",q:"2"},{n:"Ginger",q:"1 inch"},{n:"Curry Leaves",q:"5"},{n:"Vegetables",q:"1/2 cup"},{n:"Salt",q:"to taste"},{n:"Ghee",q:"1 tbsp"}], steps: ["Dry roast semolina, set aside","Heat ghee, crackle mustard, add dal","Add onion, chili, ginger, veggies","Add 2 cups water, bring to boil","Add semolina slowly, stir, cook covered"] }
+    ],
+    lunch: [
+      { name: "Dal Rice with Sabzi", desc: "Yellow lentils, steamed rice & seasonal vegetable curry", time: "35 min", cost: 80, cal: 450, protein: 18, carbs: 68, fat: 10, ingredients: [{n:"Toor Dal",q:"1 cup"},{n:"Rice",q:"1.5 cups"},{n:"Onion",q:"1"},{n:"Tomato",q:"2"},{n:"Turmeric",q:"1/4 tsp"},{n:"Cumin Seeds",q:"1 tsp"},{n:"Seasonal Veggie",q:"2 cups"},{n:"Oil",q:"2 tbsp"},{n:"Salt",q:"to taste"},{n:"Coriander",q:"garnish"}], steps: ["Pressure cook dal with turmeric & salt","Cook rice separately","Heat oil, cumin, onion, tomato for sabzi","Add veggies, cook till tender","Serve dal, rice, sabzi together"] },
+      { name: "Paneer Butter Masala + Roti", desc: "Creamy tomato curry with soft wheat flatbreads", time: "30 min", cost: 100, cal: 520, protein: 22, carbs: 52, fat: 24, ingredients: [{n:"Paneer",q:"200g"},{n:"Onion",q:"2"},{n:"Tomato",q:"3"},{n:"Cashews",q:"10"},{n:"Butter",q:"2 tbsp"},{n:"Cream",q:"2 tbsp"},{n:"Garam Masala",q:"1 tsp"},{n:"Wheat Flour",q:"2 cups"},{n:"Salt",q:"to taste"}], steps: ["Blend onion, tomato, cashews to paste","Cook paste in butter till oil separates","Add paneer cubes, garam masala","Simmer 5 min, add cream","Make rotis on tawa"] },
+      { name: "Rajma Chawal", desc: "Kidney bean curry with aromatic basmati rice", time: "40 min", cost: 75, cal: 480, protein: 20, carbs: 72, fat: 8, ingredients: [{n:"Rajma",q:"1 cup"},{n:"Rice",q:"1.5 cups"},{n:"Onion",q:"2"},{n:"Tomato",q:"2"},{n:"Ginger-Garlic Paste",q:"1 tbsp"},{n:"Rajma Masala",q:"1 tbsp"},{n:"Bay Leaf",q:"1"},{n:"Oil",q:"2 tbsp"},{n:"Salt",q:"to taste"}], steps: ["Soak rajma overnight, pressure cook","Heat oil, bay leaf, onion, ginger-garlic","Add tomato, masala, cook till soft","Add rajma, simmer 15 min","Serve with steamed rice"] }
+    ],
+    dinner: [
+      { name: "Roti + Dal Makhani", desc: "Buttery black lentils slow-cooked with wheat bread", time: "40 min", cost: 90, cal: 480, protein: 24, carbs: 58, fat: 16, ingredients: [{n:"Urad Dal",q:"1 cup"},{n:"Rajma",q:"1/4 cup"},{n:"Wheat Flour",q:"2 cups"},{n:"Butter",q:"3 tbsp"},{n:"Cream",q:"2 tbsp"},{n:"Tomato",q:"2"},{n:"Onion",q:"1"},{n:"Ginger-Garlic Paste",q:"1 tbsp"},{n:"Garam Masala",q:"1 tsp"},{n:"Salt",q:"to taste"}], steps: ["Soak urad dal + rajma overnight","Pressure cook till soft","Cook onion, tomato, ginger-garlic","Add cooked dal, simmer 20 min","Finish with butter & cream, serve with roti"] },
+      { name: "Egg Curry + Paratha", desc: "Boiled eggs in spiced onion-tomato gravy", time: "30 min", cost: 65, cal: 430, protein: 22, carbs: 48, fat: 14, ingredients: [{n:"Eggs",q:"4"},{n:"Onion",q:"2"},{n:"Tomato",q:"2"},{n:"Ginger-Garlic Paste",q:"1 tbsp"},{n:"Red Chili Powder",q:"1 tsp"},{n:"Turmeric",q:"1/4 tsp"},{n:"Wheat Flour",q:"2 cups"},{n:"Oil",q:"2 tbsp"},{n:"Salt",q:"to taste"}], steps: ["Boil eggs, slit gently","Heat oil, onion, ginger-garlic","Add tomato, turmeric, chili, cook till soft","Add water, simmer, add eggs","Make parathas, serve hot"] },
+      { name: "Mushroom Matar + Naan", desc: "Creamy mushroom and peas with soft leavened bread", time: "35 min", cost: 85, cal: 420, protein: 16, carbs: 50, fat: 18, ingredients: [{n:"Mushroom",q:"200g"},{n:"Green Peas",q:"1 cup"},{n:"Onion",q:"2"},{n:"Tomato",q:"2"},{n:"Cream",q:"2 tbsp"},{n:"Maida",q:"2 cups"},{n:"Yogurt",q:"2 tbsp"},{n:"Garam Masala",q:"1 tsp"},{n:"Oil",q:"2 tbsp"},{n:"Salt",q:"to taste"}], steps: ["Sauté mushrooms, set aside","Cook onion, tomato, add peas","Add mushrooms, masala, cream","Simmer 5 min","Make naan with maida, yogurt, cook on tawa"] }
+    ]
+  }
+};
+
+const substitutionsDB = [
+  { original: "Paneer", replacement: "Tofu / Cottage Cheese", reason: "Dairy-free option" },
+  { original: "Eggs", replacement: "Flax Egg (1 tbsp flax + 3 tbsp water)", reason: "Vegan" },
+  { original: "Butter", replacement: "Olive Oil / Coconut Oil", reason: "Dairy-free" },
+  { original: "Cream", replacement: "Cashew Cream / Coconut Cream", reason: "Dairy-free" },
+  { original: "Milk", replacement: "Oat Milk / Almond Milk", reason: "Dairy-free" },
+  { original: "Rice", replacement: "Cauliflower Rice", reason: "Low-carb" },
+  { original: "Wheat Flour", replacement: "Almond Flour / Coconut Flour", reason: "Gluten-free" },
+  { original: "Bread", replacement: "Lettuce Wraps", reason: "Gluten-free" },
+  { original: "Potato", replacement: "Sweet Potato / Turnip", reason: "Lower GI" },
+  { original: "Sugar", replacement: "Jaggery / Honey / Stevia", reason: "Natural sweetener" },
+  { original: "Peanuts", replacement: "Sunflower Seeds", reason: "Nut-free" },
+  { original: "Cheese", replacement: "Nutritional Yeast", reason: "Vegan" }
+];
+
+// ===== AI SERVICE LAYER =====
+const AIService = {
+  getKeys() {
+    return { gemini: CONFIG.GEMINI_API_KEY || '', groq: CONFIG.GROQ_API_KEY || '' };
+  },
+
+  async callGemini(prompt) {
+    const key = this.getKeys().gemini;
+    if (!key) throw new Error('No Gemini key');
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.8, maxOutputTokens: 4000 } })
+    });
+    if (!res.ok) throw new Error(`Gemini ${res.status}`);
+    const data = await res.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  },
+
+  async callGroq(prompt) {
+    const key = this.getKeys().groq;
+    if (!key) throw new Error('No Groq key');
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [
+          { role: 'system', content: 'You are a professional chef and nutritionist. Always respond with valid JSON only, no markdown.' },
+          { role: 'user', content: prompt }
+        ],
+        temperature: 0.8,
+        max_tokens: 4000
+      })
+    });
+    if (!res.ok) throw new Error(`Groq ${res.status}`);
+    const data = await res.json();
+    return data.choices?.[0]?.message?.content || '';
+  },
+
+  async generate(prompt) {
+    // Try Gemini first
+    if (state.aiMode === 'gemini') {
+      try {
+        const r = await this.callGemini(prompt);
+        if (r) return r;
+      } catch (e) {
+        console.warn('Gemini failed:', e.message);
+        updateAIStatus('fallback');
+      }
+      // Fallback to Groq
+      try {
+        state.aiMode = 'groq';
+        const r = await this.callGroq(prompt);
+        if (r) return r;
+      } catch (e) {
+        console.warn('Groq also failed:', e.message);
+      }
+    }
+    // Try Groq directly
+    else if (state.aiMode === 'groq') {
+      try {
+        return await this.callGroq(prompt);
+      } catch (e) {
+        console.warn('Groq failed:', e.message);
+      }
+    }
+    return null;
+  }
+};
+
+function buildPrompt(formData) {
+  const targets = getNutritionTargets(state.age);
+  const diet = [];
+  if (formData.veg) diet.push('vegetarian');
+  if (formData.vegan) diet.push('vegan');
+  if (formData.glutenFree) diet.push('gluten-free');
+  if (formData.lowCarb) diet.push('low-carb');
+  if (formData.dairyFree) diet.push('dairy-free');
+
+  return `Generate a complete daily meal plan for ${formData.people} people with a budget of ₹${formData.budget}.
+
+User profile:
+- Name: ${state.name}
+- Age: ${state.age}
+- Nutrition targets: ~${targets.cal} cal, ${targets.protein}g protein, ${targets.carbs}g carbs, ${targets.fat}g fat
+- Note: ${targets.note}
+
+Requirements:
+- Diet: ${diet.join(', ') || 'no restrictions'}
+- Cuisine preference: ${formData.cuisine === 'any' ? 'any cuisine, surprise me' : formData.cuisine}
+- Time available: ${formData.time} minutes total
+- Day: ${formData.day}
+${formData.specialNotes ? '- Special notes: ' + formData.specialNotes : ''}
+
+Return ONLY valid JSON (no markdown, no code fences) in this exact format:
+{
+  "meals": [
+    {
+      "type": "breakfast",
+      "name": "Meal Name",
+      "description": "Brief appealing description",
+      "time": "15 min",
+      "cost": 50,
+      "calories": 300,
+      "protein": 15,
+      "carbs": 40,
+      "fat": 10,
+      "ingredients": [{"n": "Ingredient", "q": "1 cup"}],
+      "steps": ["Step 1", "Step 2", "Step 3"]
+    }
+  ],
+  "groceryList": [{"n": "Item", "q": "Amount"}],
+  "substitutions": [{"original": "Item", "replacement": "Swap", "reason": "Why"}],
+  "budgetBreakdown": {"breakfast": 50, "lunch": 100, "dinner": 120, "total": 270},
+  "nutritionSummary": {"calories": 1800, "protein": 75, "carbs": 220, "fat": 55},
+  "tips": "One personalized cooking tip for this user"
+}`;
+}
+
+function parseAIResponse(text) {
+  let cleaned = text.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
+  try { return JSON.parse(cleaned); } catch (e) {
+    const match = cleaned.match(/\{[\s\S]*\}/);
+    if (match) return JSON.parse(match[0]);
+    throw new Error('Invalid AI response');
+  }
+}
+
+// ===== ALGORITHM FALLBACK =====
+function generateAlgorithmMeal(formData) {
+  const db = mealDB.indian;
+  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+  const breakfast = pick(db.breakfast);
+  const lunch = pick(db.lunch);
+  const dinner = pick(db.dinner);
+  const m = formData.people;
+
+  return {
+    meals: [
+      { ...breakfast, type: 'breakfast' },
+      { ...lunch, type: 'lunch' },
+      { ...dinner, type: 'dinner' }
+    ],
+    groceryList: [...breakfast.ingredients, ...lunch.ingredients, ...dinner.ingredients],
+    substitutions: substitutionsDB.filter(s =>
+      [...breakfast.ingredients, ...lunch.ingredients, ...dinner.ingredients]
+        .some(i => i.n.toLowerCase().includes(s.original.toLowerCase()))
+    ).slice(0, 4),
+    budgetBreakdown: {
+      breakfast: breakfast.cost * m,
+      lunch: lunch.cost * m,
+      dinner: dinner.cost * m,
+      total: (breakfast.cost + lunch.cost + dinner.cost) * m
+    },
+    nutritionSummary: {
+      calories: breakfast.cal + lunch.cal + dinner.cal,
+      protein: breakfast.protein + lunch.protein + dinner.protein,
+      carbs: breakfast.carbs + lunch.carbs + dinner.carbs,
+      fat: breakfast.fat + lunch.fat + dinner.fat
+    },
+    tips: getPersonalizedTip(state.age, formData)
+  };
+}
+
+function getPersonalizedTip(age, formData) {
+  const tips = [];
+  if (age < 18) tips.push("Growing bodies need calcium - include dairy or fortified alternatives.");
+  if (age >= 50) tips.push("At your age, vitamin D and calcium are crucial - consider adding curd or fortified milk.");
+  if (formData.veg) tips.push("Combine rice + dal or bread + sabzi for complete protein.");
+  if (formData.vegan) tips.push("B12 is essential for vegans - consider fortified foods or supplements.");
+  if (formData.lowCarb) tips.push("Replace rice with cauliflower rice and use almond flour for rotis.");
+  if (parseInt(formData.budget) < 300) tips.push("Buy seasonal vegetables - they're cheaper and fresher.");
+  if (parseInt(formData.time) < 30) tips.push("Prep ingredients the night before to save time.");
+  tips.push(`Hi ${state.name}! Cooking for ${formData.people} people? Make extra dal - it tastes better next day!`);
+  return tips[Math.floor(Math.random() * tips.length)];
+}
+
+// ===== MAIN GENERATE =====
+async function generateMeals() {
+  if (!rateLimiter.canCall()) {
+    showToast('Please wait a moment before generating again', true);
+    return;
+  }
+  rateLimiter.record();
+
+  const btn = document.getElementById('generateBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner" style="width:20px;height:20px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite"></div> Generating...';
+
+  document.getElementById('results').classList.add('hidden');
+  document.getElementById('loadingState').classList.remove('hidden');
+
+  const steps = ['Analyzing your profile...', 'Building nutrition targets...', 'Generating personalized meals...', 'Calculating grocery list...', 'Optimizing budget...'];
+  let stepIdx = 0;
+  const stepInterval = setInterval(() => {
+    stepIdx = Math.min(stepIdx + 1, steps.length - 1);
+    document.getElementById('loadingStep').textContent = steps[stepIdx];
+  }, 1200);
+
+  const formData = {
+    day: sanitizeInput('day'),
+    people: parseInt(document.getElementById('people').value) || 2,
+    budget: parseInt(document.getElementById('budget').value) || 500,
+    time: parseInt(document.getElementById('time').value) || 60,
+    veg: document.getElementById('veg').checked,
+    vegan: document.getElementById('vegan').checked,
+    glutenFree: document.getElementById('glutenFree').checked,
+    lowCarb: document.getElementById('lowCarb').checked,
+    dairyFree: document.getElementById('dairyFree').checked,
+    cuisine: sanitizeInput('cuisine'),
+    specialNotes: sanitizeInput('specialNotes')
+  };
+
+  let planData = null;
+
+  if (state.aiMode !== 'algorithm') {
+    try {
+      document.getElementById('loadingStep').textContent = 'Connecting to AI...';
+      const prompt = buildPrompt(formData);
+      const response = await AIService.generate(prompt);
+      if (response) planData = parseAIResponse(response);
+    } catch (e) {
+      console.warn('AI failed:', e.message);
+    }
+  }
+
+  if (!planData) {
+    document.getElementById('loadingStep').textContent = 'Using smart algorithm...';
+    await new Promise(r => setTimeout(r, 800));
+    planData = generateAlgorithmMeal(formData);
+  }
+
+  clearInterval(stepInterval);
+  state.currentPlan = planData;
+  renderResults(planData, formData);
+
+  document.getElementById('loadingState').classList.add('hidden');
+  document.getElementById('results').classList.remove('hidden');
+  btn.disabled = false;
+  btn.innerHTML = '<span>AI Generate Meal Plan</span>';
+  showToast(`${state.name}, your meal plan is ready!`);
+}
+
+// ===== RENDER =====
+function renderResults(plan, formData) {
+  const m = formData.people;
+
+  const mealGrid = document.getElementById('mealGrid');
+  const icons = { breakfast: '🌅', lunch: '☀️', dinner: '🌙' };
+  mealGrid.innerHTML = plan.meals.map((meal, i) => `
+    <div class="meal-card fade-in" style="animation-delay: ${i * 0.1}s">
+      <div class="meal-type">${icons[meal.type] || '🍽'} ${meal.type}</div>
+      <h3>${meal.name}</h3>
+      <div class="meal-desc">${meal.description || meal.desc || ''}</div>
+      <div class="meal-meta">
+        <span>⏱ ${meal.time}</span>
+        <span>🔥 ${meal.calories || meal.cal} cal</span>
+        <span>👥 ${m}</span>
+        <span>₹${(meal.cost || 0) * m}</span>
+      </div>
+      <div class="nutrition-bar">
+        <div class="nutrition-item"><div class="label">Protein</div><div class="value">${meal.protein || 0}g</div></div>
+        <div class="nutrition-item"><div class="label">Carbs</div><div class="value">${meal.carbs || 0}g</div></div>
+        <div class="nutrition-item"><div class="label">Fat</div><div class="value">${meal.fat || 0}g</div></div>
+      </div>
+    </div>
+  `).join('');
+
+  // Steps
+  const stepsList = document.getElementById('stepsList');
+  const allSteps = plan.meals.flatMap((meal, mi) =>
+    (meal.steps || []).map((s, si) => ({ text: `${meal.name}: ${s}` }))
+  );
+  stepsList.innerHTML = allSteps.map((s, i) => `
+    <div class="step-item" onclick="this.classList.toggle('done')" style="animation: fadeIn 0.3s ease ${i * 0.05}s both">
+      <div class="step-num">${i + 1}</div>
+      <div class="step-text">${s.text}</div>
+    </div>
+  `).join('');
+
+  // Timers
+  state.timers = plan.meals.map((meal, i) => {
+    const mins = parseInt(meal.time) || 15;
+    return { label: meal.name, total: mins * 60, remaining: mins * 60, running: false, id: i };
+  });
+  renderTimers();
+
+  // Grocery
+  const groceryGrid = document.getElementById('groceryGrid');
+  const seen = new Map();
+  (plan.groceryList || []).forEach(item => {
+    const key = item.n.toLowerCase();
+    if (seen.has(key)) seen.get(key).q += ' + ' + item.q;
+    else seen.set(key, { ...item });
+  });
+  groceryGrid.innerHTML = Array.from(seen.values()).map(i => `
+    <div class="grocery-item"><span class="item-name">${i.n}</span><span class="item-qty">${i.q}</span></div>
+  `).join('');
+
+  // Substitutions
+  const subList = document.getElementById('subList');
+  if (plan.substitutions?.length > 0) {
+    subList.innerHTML = plan.substitutions.map(s => `
+      <div class="sub-item">
+        <span class="original">${s.original}</span>
+        <span class="arrow">→</span>
+        <span class="replacement">${s.replacement}</span>
+        <span class="reason">${s.reason}</span>
+      </div>
+    `).join('');
+  } else {
+    subList.innerHTML = '<div style="color:var(--text-dim);padding:12px">No substitutions needed for this plan.</div>';
+  }
+
+  // Budget
+  const bb = plan.budgetBreakdown;
+  const budgetVal = formData.budget;
+  const isOver = bb.total > budgetVal;
+  const pct = Math.min((bb.total / budgetVal) * 100, 100);
+  const savings = budgetVal - bb.total;
+
+  document.getElementById('budgetContainer').innerHTML = `
+    <div class="budget-header">
+      <div><div class="amount ${isOver ? 'red' : 'green'}">₹${bb.total}</div><div class="limit">Estimated Cost</div></div>
+      <div style="text-align:right"><div class="amount" style="color:var(--text-muted)">₹${budgetVal}</div><div class="limit">Your Budget</div></div>
+    </div>
+    <div class="budget-bar"><div class="budget-bar-fill" style="width:${pct}%;background:${isOver ? 'var(--danger)' : 'var(--accent)'}"></div></div>
+    <div class="budget-status">
+      <span>${isOver ? `<span class="over">Over by ₹${Math.abs(savings)}</span>` : '<span class="savings">Within budget</span>'}</span>
+      ${!isOver ? `<span class="savings">₹${savings} saved</span>` : ''}
+    </div>
+    <div class="budget-breakdown">
+      <div class="breakdown-item"><div class="label">Breakfast</div><div class="value">₹${bb.breakfast}</div></div>
+      <div class="breakdown-item"><div class="label">Lunch</div><div class="value">₹${bb.lunch}</div></div>
+      <div class="breakdown-item"><div class="label">Dinner</div><div class="value">₹${bb.dinner}</div></div>
+      <div class="breakdown-item"><div class="label">Per Person</div><div class="value">₹${Math.ceil(bb.total / m)}</div></div>
+    </div>
+    ${plan.tips ? `<div style="margin-top:16px;padding:12px;background:rgba(34,197,94,0.08);border-radius:8px;font-size:0.85rem;color:var(--accent)">${plan.tips}</div>` : ''}
+  `;
+}
+
+// ===== TIMERS =====
+function renderTimers() {
+  const section = document.getElementById('timerSection');
+  section.innerHTML = state.timers.map((t, i) => {
+    const mins = Math.floor(t.remaining / 60);
+    const secs = t.remaining % 60;
+    return `
+      <div class="timer-card ${t.running ? 'active' : ''}">
+        <div class="timer-label">${t.label}</div>
+        <div class="timer-value">${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}</div>
+        <div class="timer-controls">
+          <button class="${t.running ? 'running' : ''}" onclick="toggleTimer(${i})">${t.running ? 'Pause' : 'Start'}</button>
+          <button onclick="resetTimer(${i})">Reset</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function toggleTimer(idx) {
+  const t = state.timers[idx];
+  if (t.running) {
+    clearInterval(state.timerIntervals[idx]);
+    t.running = false;
+  } else {
+    t.running = true;
+    state.timerIntervals[idx] = setInterval(() => {
+      if (t.remaining > 0) { t.remaining--; renderTimers(); }
+      else {
+        clearInterval(state.timerIntervals[idx]);
+        t.running = false;
+        renderTimers();
+        showToast(`Timer done: ${t.label}!`);
+      }
+    }, 1000);
+  }
+  renderTimers();
+}
+
+function resetTimer(idx) {
+  clearInterval(state.timerIntervals[idx]);
+  state.timers[idx].remaining = state.timers[idx].total;
+  state.timers[idx].running = false;
+  renderTimers();
+}
+
+// ===== ACTIONS =====
+function printPlan() { window.print(); }
+
+function copyToClipboard() {
+  if (!state.currentPlan) return;
+  const p = state.currentPlan;
+  let text = `${state.name}'s Meal Plan\n\n`;
+  p.meals.forEach(meal => {
+    text += `${meal.type.toUpperCase()}: ${meal.name}\n${meal.description || meal.desc}\nCalories: ${meal.calories || meal.cal} | Protein: ${meal.protein}g\n\n`;
+  });
+  text += `Total Cost: ₹${p.budgetBreakdown.total}\nTips: ${p.tips || ''}`;
+  navigator.clipboard.writeText(text).then(() => showToast('Copied!')).catch(() => showToast('Copy failed', true));
+}
+
+function regenerateDifferent() { generateMeals(); }
+
+function startNewPlan() {
+  document.getElementById('results').classList.add('hidden');
+  state.currentPlan = null;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ===== ONBOARDING =====
+function startApp() {
+  state.name = sanitize(document.getElementById('userName').value || 'Chef');
+  state.age = parseInt(document.getElementById('userAge').value) || 25;
+
+  const daySelect = document.getElementById('day');
+  const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const today = new Date().getDay();
+  daySelect.innerHTML = days.map((d, i) => `<option value="${d.toLowerCase()}" ${i === today ? 'selected' : ''}>${d}</option>`).join('');
+
+  document.getElementById('greeting').innerHTML = `Hello, <strong>${state.name}</strong>! Let's plan your meals.`;
+  document.getElementById('profileInfo').textContent = `Age ${state.age} • ${getNutritionTargets(state.age).note}`;
+  updateAIStatus(state.aiMode);
+
+  document.getElementById('onboarding').classList.add('hidden');
+  document.getElementById('mainApp').classList.remove('hidden');
+}
+
+function updateAIStatus(mode) {
+  const el = document.getElementById('aiStatus');
+  const msgs = {
+    gemini: { cls: 'connected', html: '<span class="spinner"></span> AI Engine: Gemini (Google) connected' },
+    groq: { cls: 'fallback', html: 'AI Engine: Groq (Llama 3.3) - Fallback active' },
+    algorithm: { cls: 'offline', html: 'AI Engine: Smart Algorithm mode' }
+  };
+  const m = msgs[mode] || msgs.algorithm;
+  el.className = `ai-status ${m.cls}`;
+  el.innerHTML = m.html;
+}
+
+function showToast(msg, isError = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast show ${isError ? 'error' : ''}`;
+  setTimeout(() => t.className = 'toast', 2500);
+}
+
+// ===== PWA: Service Worker + Install Prompt =====
+let deferredPrompt = null;
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./service-worker.js').catch(() => {});
+}
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('installBanner').classList.add('show');
+});
+
+function installApp() {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  deferredPrompt.userChoice.then((r) => {
+    if (r.outcome === 'accepted') showToast('App installed!');
+    deferredPrompt = null;
+    document.getElementById('installBanner').classList.remove('show');
+  });
+}
+
+function dismissInstall() {
+  document.getElementById('installBanner').classList.remove('show');
+}
+
+window.addEventListener('appinstalled', () => {
+  document.getElementById('installBanner').classList.remove('show');
+  deferredPrompt = null;
+});
+</script>
+</body>
+</html>
