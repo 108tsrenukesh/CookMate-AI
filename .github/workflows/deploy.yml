@@ -23,10 +23,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Inject API keys into index.html
+      - name: Debug - Check secrets
         run: |
-          sed -i "s|YOUR_GEMINI_KEY_HERE|${{ secrets.GEMINI_API_KEY }}|g" index.html
-          sed -i "s|YOUR_GROQ_KEY_HERE|${{ secrets.GROQ_API_KEY }}|g" index.html
+          echo "GEMINI key length: ${#GEMINI_API_KEY}"
+          echo "GROQ key length: ${#GROQ_API_KEY}"
+          echo "GEMINI first 8 chars: ${GEMINI_API_KEY:0:8}"
+          echo "GROQ first 8 chars: ${GROQ_API_KEY:0:8}"
+
+      - name: Inject API keys into index.html
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: |
+          sed -i "s|YOUR_GEMINI_KEY_HERE|$GEMINI_API_KEY|g" index.html
+          sed -i "s|YOUR_GROQ_KEY_HERE|$GROQ_API_KEY|g" index.html
+          echo "--- After injection (first 20 chars of keys) ---"
+          grep -o 'GEMINI_API_KEY: "[^"]*"' index.html | head -1
+          grep -o 'GROQ_API_KEY: "[^"]*"' index.html | head -1
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
