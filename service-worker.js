@@ -1,10 +1,10 @@
-const CACHE_NAME = "cookmate-v3";
+const CACHE_NAME = "cookmate-v4";
 const ASSETS = [
   "./",
   "./index.html",
   "./manifest.json",
-  "./icons/icon-192.svg",
-  "./icons/icon-512.svg"
+  "./icons/app-icon.png",
+  "./icons/landing-logo.png"
 ];
 
 self.addEventListener("install", (e) => {

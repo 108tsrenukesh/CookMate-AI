@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="CookMate">
   <link rel="manifest" href="manifest.json">
-  <link rel="apple-touch-icon" href="icons/icon-192.svg">
+  <link rel="apple-touch-icon" href="icons/app-icon.png">
   <style>
     :root {
       --bg-primary: #0a0e1a;
@@ -67,6 +67,8 @@
       -webkit-text-fill-color: transparent;
       margin-bottom: 6px;
     }
+
+    .onboard-card img { max-width: 380px; width: 100%; height: auto; margin-bottom: 8px; }
 
     .onboard-card .subtitle { color: var(--text-muted); margin-bottom: 28px; font-size: 0.95rem; }
 
@@ -130,6 +132,8 @@
 
     /* ===== MAIN APP ===== */
     header { text-align: center; padding: 24px 0; }
+
+    header img { max-width: 380px; width: 100%; height: auto; }
 
     header h1 {
       font-size: 2rem;
@@ -482,7 +486,7 @@
 <div id="onboarding">
   <div class="onboard-card">
     <span class="onboard-badge">PromptWars Warm-Up</span>
-    <h1>CookMate AI</h1>
+    <img src="icons/landing-logo.png" alt="CookMate AI - AI Cooking & Health Care Buddy" style="max-width:100%;height:auto;margin-bottom:12px">
     <p class="subtitle">AI-powered personal cooking planner. No login required.</p>
 
     <div class="ai-badge" id="aiBadge"></div>
@@ -506,7 +510,7 @@
 <div id="mainApp" class="hidden">
   <div class="container">
     <header>
-      <h1>CookMate AI</h1>
+      <img src="icons/landing-logo.png" alt="CookMate AI" style="max-width:100%;height:auto;margin-bottom:8px">
       <p class="greeting" id="greeting"></p>
       <div class="profile-pill">
         <span class="dot"></span>
