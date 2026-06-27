@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CookMate AI - Tests</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0e1a; color: #e2e8f0; padding: 20px; }
+    h1 { font-size: 1.5rem; margin-bottom: 20px; color: #22c55e; }
+    .test-group { margin-bottom: 24px; background: #111827; border-radius: 12px; padding: 16px; border: 1px solid #1e293b; }
+    .test-group h2 { font-size: 1rem; margin-bottom: 12px; color: #94a3b8; }
+    .test { padding: 8px 12px; margin: 4px 0; border-radius: 6px; font-size: 0.85rem; font-family: monospace; }
+    .pass { background: rgba(34, 197, 94, 0.1); color: #22c55e; border-left: 3px solid #22c55e; }
+    .fail { background: rgba(239, 68, 68, 0.1); color: #ef4444; border-left: 3px solid #ef4444; }
+    .summary { margin-top: 20px; padding: 12px; border-radius: 8px; font-weight: 600; }
+    .summary.all-pass { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+    .summary.has-fail { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+  </style>
+</head>
+<body>
+  <h1>CookMate AI - Unit Tests</h1>
+  <div id="results"></div>
+  <div id="summary"></div>
+
+  <script>
+  // ===== Inline the functions under test =====
+  function esc(str) {
+    if (str == null) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  const substitutionsDB = [
+    { original: "Paneer", replacement: "Tofu", reason: "Dairy-free" },
+    { original: "Eggs", replacement: "Flax Egg", reason: "Vegan" },
+    { original: "Butter", replacement: "Olive Oil", reason: "Dairy-free" },
+    { original: "Cream", replacement: "Cashew Cream", reason: "Dairy-free" },
+  ];
+
+  const mealDB = {
+    indian: {
+      breakfast: [
+        { name: "Poha", cost: 40, veg: true, vegan: true, glutenFree: true, dairyFree: true, ingredients: [{n:"Poha",q:"1 cup"}] },
+        { name: "Aloo Paratha", cost: 50, veg: true, vegan: false, glutenFree: false, dairyFree: false, ingredients: [{n:"Wheat Flour",q:"2 cups"}] },
+      ],
+      lunch: [
+        { name: "Dal Rice", cost: 80, veg: true, vegan: true, glutenFree: true, dairyFree: true, ingredients: [{n:"Toor Dal",q:"1 cup"}] },
+        { name: "Egg Curry", cost: 65, veg: false, vegan: false, glutenFree: false, dairyFree: true, ingredients: [{n:"Eggs",q:"4"}] },
+      ],
+      dinner: [
+        { name: "Dal Makhani", cost: 90, veg: true, vegan: false, glutenFree: false, dairyFree: false, ingredients: [{n:"Urad Dal",q:"1 cup"}] },
+        { name: "Mushroom Naan", cost: 85, veg: true, vegan: false, glutenFree: false, dairyFree: false, ingredients: [{n:"Mushroom",q:"200g"}] },
+      ]
+    }
+  };
+
+  function filterMeals(meals, formData) {
+    return meals.filter(m => {
+      if (formData.vegan && !m.vegan) return false;
+      if (formData.veg && !m.veg) return false;
+      if (formData.glutenFree && !m.glutenFree) return false;
+      if (formData.dairyFree && !m.dairyFree) return false;
+      return true;
+    });
+  }
+
+  function applyBudget(meals, budget, people) {
+    const total = meals.reduce((s, m) => s + m.cost * people, 0);
+    if (total <= budget) return { meals, adjusted: false };
+    const sorted = [...meals].sort((a, b) => a.cost - b.cost);
+    const cheapest = sorted.slice(0, 3);
+    const newTotal = cheapest.reduce((s, m) => s + m.cost * people, 0);
+    if (newTotal <= budget) return { meals: cheapest, adjusted: true };
+    return { meals: cheapest, adjusted: true, overBudget: true };
+  }
+
+  function getNutritionTargets(age) {
+    if (age < 12) return { cal: 1600, protein: 30 };
+    if (age < 18) return { cal: 2200, protein: 50 };
+    if (age < 30) return { cal: 2000, protein: 55 };
+    if (age < 50) return { cal: 1900, protein: 60 };
+    if (age < 65) return { cal: 1800, protein: 65 };
+    return { cal: 1600, protein: 60 };
+  }
+
+  // ===== Test Framework =====
+  let passed = 0, failed = 0;
+  const testOutput = [];
+
+  function test(name, fn) {
+    try {
+      fn();
+      passed++;
+      testOutput.push({ name, pass: true });
+    } catch (e) {
+      failed++;
+      testOutput.push({ name, pass: false, error: e.message });
+    }
+  }
+
+  function assert(condition, msg) {
+    if (!condition) throw new Error(msg || 'Assertion failed');
+  }
+
+  function assertEqual(a, b, msg) {
+    if (a !== b) throw new Error(msg || `Expected ${JSON.stringify(b)}, got ${JSON.stringify(a)}`);
+  }
+
+  // ===== Tests =====
+
+  // --- escapeHtml ---
+  test('esc() escapes HTML entities', () => {
+    assertEqual(esc('<script>alert(1)</script>'), '&lt;script&gt;alert(1)&lt;/script&gt;');
+  });
+
+  test('esc() handles null/undefined', () => {
+    assertEqual(esc(null), '');
+    assertEqual(esc(undefined), '');
+  });
+
+  test('esc() passes normal text through', () => {
+    assertEqual(esc('Hello World'), 'Hello World');
+  });
+
+  // --- filterMeals ---
+  test('filterMeals: vegetarian excludes non-veg', () => {
+    const result = filterMeals(mealDB.indian.lunch, { veg: true, vegan: false, glutenFree: false, dairyFree: false });
+    assert(result.every(m => m.veg), 'Should only have vegetarian meals');
+    assertEqual(result.length, 1, 'Should have 1 vegetarian lunch');
+  });
+
+  test('filterMeals: vegan excludes dairy and non-vegan', () => {
+    const result = filterMeals(mealDB.indian.breakfast, { veg: false, vegan: true, glutenFree: false, dairyFree: false });
+    assert(result.every(m => m.vegan), 'Should only have vegan meals');
+  });
+
+  test('filterMeals: gluten-free excludes gluten meals', () => {
+    const result = filterMeals(mealDB.indian.breakfast, { veg: false, vegan: false, glutenFree: true, dairyFree: false });
+    assert(result.every(m => m.glutenFree), 'Should only have gluten-free meals');
+    assertEqual(result.length, 1);
+  });
+
+  test('filterMeals: dairy-free excludes dairy', () => {
+    const result = filterMeals(mealDB.indian.breakfast, { veg: false, vegan: false, glutenFree: false, dairyFree: true });
+    assert(result.every(m => m.dairyFree), 'Should only have dairy-free meals');
+  });
+
+  test('filterMeals: no filters returns all', () => {
+    const result = filterMeals(mealDB.indian.lunch, { veg: false, vegan: false, glutenFree: false, dairyFree: false });
+    assertEqual(result.length, mealDB.indian.lunch.length);
+  });
+
+  // --- applyBudget ---
+  test('applyBudget: under budget returns original', () => {
+    const meals = [{ cost: 50 }, { cost: 50 }, { cost: 50 }];
+    const result = applyBudget(meals, 500, 2);
+    assertEqual(result.adjusted, false);
+  });
+
+  test('applyBudget: over budget swaps to cheaper', () => {
+    const meals = [{ cost: 200 }, { cost: 200 }, { cost: 200 }];
+    const result = applyBudget(meals, 300, 1);
+    assertEqual(result.adjusted, true);
+    const total = result.meals.reduce((s, m) => s + m.cost, 0);
+    assert(total <= 300 || result.overBudget, 'Should try to fit budget');
+  });
+
+  test('applyBudget: exactly at budget stays', () => {
+    const meals = [{ cost: 100 }, { cost: 100 }, { cost: 100 }];
+    const result = applyBudget(meals, 300, 1);
+    assertEqual(result.adjusted, false);
+  });
+
+  // --- getNutritionTargets ---
+  test('nutrition: child (<12) gets lower calories', () => {
+    const t = getNutritionTargets(10);
+    assert(t.cal < 2000, 'Child should have lower calorie target');
+  });
+
+  test('nutrition: teen (13-17) gets higher calories', () => {
+    const t = getNutritionTargets(15);
+    assert(t.cal >= 2000, 'Teen should have higher calorie target');
+  });
+
+  test('nutrition: senior (65+) gets lower calories', () => {
+    const t = getNutritionTargets(70);
+    assert(t.cal <= 1600, 'Senior should have lower calorie target');
+  });
+
+  // ===== Render Results =====
+  const container = document.getElementById('results');
+  const summary = document.getElementById('summary');
+
+  // Group tests
+  const groups = {};
+  testOutput.forEach(t => {
+    const group = t.name.split(':')[0].trim();
+    if (!groups[group]) groups[group] = [];
+    groups[group].push(t);
+  });
+
+  let html = '';
+  for (const [group, tests] of Object.entries(groups)) {
+    html += `<div class="test-group"><h2>${group}</h2>`;
+    tests.forEach(t => {
+      html += `<div class="test ${t.pass ? 'pass' : 'fail'}">${t.pass ? 'PASS' : 'FAIL'}: ${t.name}${t.error ? ' - ' + t.error : ''}</div>`;
+    });
+    html += '</div>';
+  }
+  container.innerHTML = html;
+
+  const total = passed + failed;
+  summary.innerHTML = `<div class="summary ${failed === 0 ? 'all-pass' : 'has-fail'}">${passed}/${total} tests passed${failed > 0 ? ` (${failed} failed)` : ''}</div>`;
+  </script>
+</body>
+</html>
