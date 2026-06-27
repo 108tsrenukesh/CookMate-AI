@@ -367,6 +367,33 @@
     }
     .btn-share:hover { border-color: var(--accent); color: var(--accent); }
 
+    /* Step Tabs */
+    .step-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .step-tab {
+      padding: 8px 16px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .step-tab:hover { border-color: var(--accent); color: var(--accent); }
+
+    .step-tab.active {
+      background: var(--accent);
+      color: #000;
+      border-color: var(--accent);
+      font-weight: 600;
+    }
+
     .toast {
       position: fixed;
       bottom: 30px;
@@ -551,6 +578,7 @@
       </div>
       <div class="card">
         <h2>Cooking Steps</h2>
+        <div class="step-tabs" id="stepTabs"></div>
         <div class="steps-list" id="stepsList"></div>
       </div>
       <div class="card">
@@ -1083,17 +1111,48 @@ function renderResults(plan, formData) {
     </div>
   `).join('');
 
-  // Steps
+  // Steps with tabs
   const stepsList = document.getElementById('stepsList');
-  const allSteps = plan.meals.flatMap((meal, mi) =>
-    (meal.steps || []).map((s, si) => ({ text: `${meal.name}: ${s}` }))
-  );
-  stepsList.innerHTML = allSteps.map((s, i) => `
-    <div class="step-item" onclick="this.classList.toggle('done')" style="animation: fadeIn 0.3s ease ${i * 0.05}s both">
-      <div class="step-num">${i + 1}</div>
-      <div class="step-text">${esc(s.text)}</div>
-    </div>
+  const stepTabs = document.getElementById('stepTabs');
+  const mealSteps = plan.meals.map(meal => ({
+    name: meal.name,
+    type: meal.type,
+    steps: (meal.steps || []).map(s => `${meal.name}: ${s}`)
+  }));
+
+  // Render tabs
+  const allTabs = [{ name: 'All Meals', type: 'all' }, ...mealSteps];
+  stepTabs.innerHTML = allTabs.map((t, i) => `
+    <button class="step-tab ${i === 0 ? 'active' : ''}" onclick="filterSteps('${t.type}')">${t.type === 'all' ? '🍽 All' : esc(t.name)}</button>
   `).join('');
+
+  // Store steps data for filtering
+  window._mealSteps = mealSteps;
+
+  // Render all steps initially
+  function renderSteps(filter) {
+    let steps = [];
+    if (filter === 'all') {
+      steps = mealSteps.flatMap(m => m.steps);
+    } else {
+      const meal = mealSteps.find(m => m.type === filter);
+      steps = meal ? meal.steps : [];
+    }
+    stepsList.innerHTML = steps.map((s, i) => `
+      <div class="step-item" onclick="this.classList.toggle('done')" style="animation: fadeIn 0.3s ease ${i * 0.03}s both">
+        <div class="step-num">${i + 1}</div>
+        <div class="step-text">${esc(s)}</div>
+      </div>
+    `).join('');
+  }
+
+  window.filterSteps = function(type) {
+    document.querySelectorAll('.step-tab').forEach(tab => tab.classList.remove('active'));
+    event.target.classList.add('active');
+    renderSteps(type);
+  };
+
+  renderSteps('all');
 
   // Timers
   state.timers = plan.meals.map((meal, i) => {
