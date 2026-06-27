@@ -702,8 +702,9 @@ function esc(str) {
   cuisineSel.innerHTML = cuisines.map(c => `<option value="${c.v}" ${c.v === (def.CUISINE || 'any') ? 'selected' : ''}>${c.l}</option>`).join('');
 
   // Determine AI mode based on config keys
-  const geminiKey = CONFIG.GEMINI_API_KEY || '';
-  const groqKey = CONFIG.GROQ_API_KEY || '';
+  function hasKey(k) { return k && !k.startsWith('YOUR_') && k.length > 12; }
+  const geminiKey = hasKey(CONFIG.GEMINI_API_KEY) ? CONFIG.GEMINI_API_KEY : '';
+  const groqKey = hasKey(CONFIG.GROQ_API_KEY) ? CONFIG.GROQ_API_KEY : '';
 
   if (geminiKey) {
     state.aiMode = 'gemini';
